@@ -1,7 +1,11 @@
 import pygame
 import button
+import csv
+import pickle
+
 
 pygame.init()
+font = pygame.font.SysFont('Futura', 30)
 
 clock = pygame.time.Clock()
 FPS = 60
@@ -43,8 +47,6 @@ for x in range(TILE_TYPES):
     img = pygame.transform.scale(img, (TILE_SIZE, TILE_SIZE))
     img_list.append(img)
 
-
-
 #define colors
 GREEN = (144,201,120)
 WHITE = (255,255,255)
@@ -60,12 +62,17 @@ for row in range (ROWS):
 for tile in range(0, MAX_COLS):
     world_data[ROWS- 1][tile] = 0
 
+#function for outputting text
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+
 #drawing background
 def draw_bg():
     screen.fill(GREEN)
     width = sky_img.get_width()
     for x in range(4):
-        screen.blit(sky_img, ((x *width) -scroll * .2,0))
+        screen.blit(sky_img, ((x *width) -scroll * .2,0)) #<-sets parallax slow down
         screen.blit(mountain_img, ((x *width)-scroll* .5, SCREEN_HEIGHT - mountain_img.get_height()-300))
         screen.blit(pine1_img, ((x *width)-scroll*.7, SCREEN_HEIGHT - pine1_img.get_height()- 150))
         screen.blit(pine2_img, ((x *width)-scroll, SCREEN_HEIGHT - pine2_img.get_height()))
@@ -77,7 +84,6 @@ def draw_grid():
     #horizontal
     for c in range(ROWS+1):
         pygame.draw.line(screen, WHITE, (0, c * TILE_SIZE), (SCREEN_WIDTH, c * TILE_SIZE))
-    
 
 #drawing the world tiles
 def draw_world():
@@ -86,10 +92,9 @@ def draw_world():
             if tile >= 0:
                 screen.blit(img_list[tile], (x * TILE_SIZE - scroll, y * TILE_SIZE))
 
-
 #create buttons
 save_button = button.Button(SCREEN_WIDTH // 2, SCREEN_HEIGHT + LOWER_MARGIN - 50, save_img, 1)
-load_button = button.Button(SCREEN_WIDTH // 2, SCREEN_HEIGHT + LOWER_MARGIN - 50, load_img, 1)
+load_button = button.Button(SCREEN_WIDTH  // 2 + 200, SCREEN_HEIGHT + LOWER_MARGIN - 50, load_img, 1)
 
 #make a button list
 button_list = []
@@ -104,7 +109,6 @@ for i in range (len(img_list)):
         button_col = 0
 
 
-
 run = True
 while run:
 
@@ -114,11 +118,33 @@ while run:
     draw_grid()
     draw_world()
 
-
+    draw_text(f'Level: {level}', font, WHITE, 10, SCREEN_HEIGHT + LOWER_MARGIN - 90)
+    draw_text('press UP or DOWN to change level', font, WHITE, 10, SCREEN_HEIGHT + LOWER_MARGIN - 70)
 
     #save and load buttons
-    save_button.draw(screen)
-    load_button.draw(screen)
+    if save_button.draw(screen):
+        #save level data
+        #pickle_out = open(f'level{level}_data', 'wb')
+        #pickle.dump(world_data, pickle_out)
+        #pickle_out.close()
+        with open(f'level{level}_data.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter = ',')
+            for row in world_data:
+                writer.writerow(row)
+
+    if load_button.draw(screen):
+        #load level data
+        #rest scroll back to start of level
+        scroll = 0
+        #world_data = []
+        #pickle_in = open(f'level{level}_data', 'rb')
+        #world_data = pickle.load(pickle_in)
+        with open(f'level{level}_data.csv', newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter = ',')
+            for x, row in enumerate(reader):
+                for y, tile in enumerate(row):
+                    world_data[x][y] = int(tile)
+                
 
     #draw tile panel and tiles
     pygame.draw.rect(screen, GREEN, (SCREEN_WIDTH, 0, SIDE_MARGIN, SCREEN_HEIGHT))
@@ -138,8 +164,6 @@ while run:
     if scroll_right == True and scroll < (MAX_COLS * TILE_SIZE) - SCREEN_WIDTH:
         scroll += 5 * scroll_speed
 
-
-
     #add new tiles to screen
     #get mouse pos
     pos = pygame.mouse.get_pos()
@@ -154,17 +178,16 @@ while run:
                 world_data[y][x] = current_tile
         if pygame.mouse.get_pressed()[2] == 1:
             world_data[y][x] = -1
-            
-
-
-
-
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
         #keyboard presses
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                level += 1
+            if event.key == pygame.K_DOWN and level > 0:
+                level -= 1
             if event.key == pygame.K_LEFT:
                 scroll_left = True
             if event.key == pygame.K_RIGHT:
